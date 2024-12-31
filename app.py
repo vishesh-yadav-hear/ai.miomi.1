@@ -68,6 +68,7 @@ def get_top_answers(user_question):
 @app.route('/')
 def home():
     return render_template('index.html')
+
 @app.route('/ask', methods=['POST'])
 def ask():
     user_question = request.form.get('question', '').strip()
@@ -79,7 +80,7 @@ def ask():
         return render_template(
             'index.html',
             response=[f"{i+1}. {answer}" for i, (answer, score) in enumerate(top_answers)],
-            autofill_question=user_question  # Persist the question
+            autofill_question=user_question
         )
     else:
         # Save the unanswered question to feedback
@@ -95,8 +96,9 @@ def ask():
         return render_template(
             'index.html',
             response="AI couldn't find an appropriate answer. Please teach AI below.",
-            autofill_question=user_question  # Persist the question
+            autofill_question=user_question
         )
+
 
 @app.route('/teach', methods=['POST'])
 def teach():
@@ -153,6 +155,36 @@ def feedback():
             teach_response=f"Error saving feedback: {e}",
             autofill_question=question
         )
+
+
+@app.route('/feedback', methods=['GET'])
+def feedback_page():
+    try:
+        if os.path.exists(feedback_file):
+            feedback_data = pd.read_csv(feedback_file)
+        else:
+            feedback_data = pd.DataFrame(columns=['Question', 'Answer'])
+
+        # Add enumerated index for rendering in template
+        feedback_data = feedback_data.reset_index()  # Ensure indexes are consistent
+        return render_template('feedback.html', feedback=feedback_data.to_dict(orient='records'))
+    except Exception as e:
+        return f"Error loading feedback: {e}"
+
+@app.route('/database', methods=['GET'])
+def database_page():
+    try:
+        if os.path.exists(dataset_file):
+            database_data = pd.read_csv(dataset_file)
+        else:
+            database_data = pd.DataFrame(columns=['Question', 'Answer'])
+
+        # Add enumerated index for rendering in template
+        database_data = database_data.reset_index()  # Ensure indexes are consistent
+        return render_template('database.html', database=database_data.to_dict(orient='records'))
+    except Exception as e:
+        return f"Error loading database: {e}"
+
 
 
 if __name__ == '__main__':
