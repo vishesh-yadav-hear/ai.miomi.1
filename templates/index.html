@@ -82,14 +82,26 @@
             </div>
             <button type="submit">Ask</button>
         </form>
+        
         <div class="response">
             {% if response %}
-                <strong>Top 3 Answers:</strong>
+                <strong>Answers:</strong>
+
+                
                 <ul>
                     {% for ans in response %}
                         <li>{{ ans | safe }}</li>
+                        <form method="post" action="/feedback">
+                            <input type="hidden" name="question" value="{{ autofill_question or '' }}">
+                            <input type="hidden" name="answer" value="{{ ans }}">
+                            <button type="submit">This is the right one</button>
+                        </form>
                     {% endfor %}
                 </ul>
+                
+                
+                
+
             {% endif %}
         </div>
 

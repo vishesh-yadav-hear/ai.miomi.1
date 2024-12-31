@@ -68,7 +68,6 @@ def get_top_answers(user_question):
 @app.route('/')
 def home():
     return render_template('index.html')
-
 @app.route('/ask', methods=['POST'])
 def ask():
     user_question = request.form.get('question', '').strip()
@@ -79,7 +78,8 @@ def ask():
     if top_answers:
         return render_template(
             'index.html',
-            response=[f"{i+1}. {answer}" for i, (answer, score) in enumerate(top_answers)]
+            response=[f"{i+1}. {answer}" for i, (answer, score) in enumerate(top_answers)],
+            autofill_question=user_question  # Persist the question
         )
     else:
         # Save the unanswered question to feedback
@@ -95,7 +95,7 @@ def ask():
         return render_template(
             'index.html',
             response="AI couldn't find an appropriate answer. Please teach AI below.",
-            autofill_question=user_question
+            autofill_question=user_question  # Persist the question
         )
 
 @app.route('/teach', methods=['POST'])
@@ -121,6 +121,39 @@ def teach():
         return render_template('index.html', teach_response="Feedback saved successfully. AI will now use this data.")
     except Exception as e:
         return render_template('index.html', teach_response=f"Error saving feedback: {e}")
+
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    question = request.form.get('question', '').strip()
+    answer = request.form.get('answer', '').strip()
+
+    if not question or not answer:
+        return render_template(
+            'index.html',
+            teach_response="Both question and answer are required for feedback.",
+            autofill_question=question
+        )
+
+    try:
+        # Save the question-answer pair in feedback.csv
+        feedback_exists = os.path.exists(feedback_file)
+        with open(feedback_file, 'a', encoding='utf-8') as f:
+            if not feedback_exists:
+                f.write("Question,Answer\n")
+            f.write(f'"{question}","{answer}"\n')
+
+        return render_template(
+            'index.html',
+            teach_response="Thanks for Teach me.",
+            autofill_question=question
+        )
+    except Exception as e:
+        return render_template(
+            'index.html',
+            teach_response=f"Error saving feedback: {e}",
+            autofill_question=question
+        )
+
 
 if __name__ == '__main__':
     app.run(debug=True)
