@@ -46,28 +46,35 @@ def get_weighted_score(tfidf_score, fuzzy_score, weight_tfidf=0.7, weight_fuzzy=
 def get_top_answers(user_question):
     try:
         user_question = preprocess_text(user_question)
+        
+        # Check if question already exists in the dataset
+        if user_question in [preprocess_text(q) for q in questions]:
+            # Find the index of the existing question
+            idx = [preprocess_text(q) for q in questions].index(user_question)
+            return [(answers[idx], 1.0)]  # Return the existing answer directly
+        
         user_question_tfidf = vectorizer.transform([user_question])
         similarities = cosine_similarity(user_question_tfidf, tfidf_matrix).flatten()
 
-        # Combine TF-IDF and fuzzy scores
         scores = []
         for idx, question in enumerate(questions):
             fuzzy_score = fuzz.partial_ratio(user_question, preprocess_text(question))
             weighted_score = get_weighted_score(similarities[idx], fuzzy_score)
             scores.append((idx, weighted_score))
 
-        # Sort scores in descending order and get top 3
         scores = sorted(scores, key=lambda x: x[1], reverse=True)[:3]
 
-        top_answers = [(answers[idx], score) for idx, score in scores if score > 0.2]  # Threshold = 0.2
+        top_answers = [(answers[idx], score) for idx, score in scores if score > 0.2]
         return top_answers if top_answers else None
     except Exception as e:
         return [(str(e), 0)]
+
 
 # Routes
 @app.route('/')
 def home():
     return render_template('index.html')
+
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -79,7 +86,7 @@ def ask():
     if top_answers:
         return render_template(
             'index.html',
-            response=[f"{i+1}. {answer}" for i, (answer, score) in enumerate(top_answers)],
+            response=[f"{answer}" for answer, score in top_answers],  # No numbering here
             autofill_question=user_question
         )
     else:
