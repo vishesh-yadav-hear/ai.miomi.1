@@ -5,15 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feedback</title>
     <style>
+        
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            background-color: #f4f4f4;
         }
+
 
         .navbar {
             width: 100%;
@@ -36,49 +40,66 @@
         }
 
         .container {
-            width: 90%;
             max-width: 800px;
+            margin: 0 auto;
             background: #fff;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
         }
 
         h1 {
-            color: #333;
-            margin-bottom: 20px;
             text-align: center;
+            margin-bottom: 20px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin-top: 20px;
         }
 
-        table th,
-        table td {
-            border: 1px solid #ddd;
+        table th, table td {
             padding: 10px;
+            border: 1px solid #ddd;
             text-align: left;
         }
 
         table th {
-            background: #007bff;
-            color: #fff;
+            background-color: #f2f2f2;
+            font-weight: bold;
         }
 
-        table tr:nth-child(even) {
-            background: #f9f9f9;
+        form {
+            margin: 0;
+            display: inline;
         }
 
-        table tr:hover {
-            background: #f1f1f1;
+        form button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        form button:hover {
+            background-color: #0056b3;
+        }
+
+        form button.delete {
+            background-color: #dc3545;
+        }
+
+        form button.delete:hover {
+            background-color: #c82333;
         }
     </style>
 </head>
 <body>
+    
     <div class="navbar">
         <a href="/">Home</a>
         <a href="/feedback">Feedback</a>
@@ -90,21 +111,39 @@
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
                     <th>Question</th>
                     <th>Answer</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for row in feedback or database %}
+                {% for row in feedback %}
                 <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ row.Question }}</td>
-                    <td>{{ row.Answer }}</td>
+                    <td>{{ row['Question'] }}</td>
+                    <td>{{ row['Answer'] }}</td>
+                    <td>
+                        <!-- Update Button -->
+                        <form method="post" action="/update-feedback">
+                            <input type="hidden" name="old_question" value="{{ row['Question'] }}">
+                            <input type="text" name="new_question" placeholder="New Question" required>
+                            <input type="text" name="new_answer" placeholder="New Answer" required>
+                            <button type="submit">Update</button>
+                        </form>
+                        <!-- Delete Button -->
+                        <form method="post" action="/delete-feedback">
+                            <input type="hidden" name="question_to_delete" value="{{ row['Question'] }}">
+                            <button type="submit" class="delete">Delete</button>
+                        </form>
+                        <form method="post" action="/add-to-database">
+                            <input type="hidden" name="question" value="{{ row['Question'] }}">
+                            <input type="hidden" name="answer" value="{{ row['Answer'] }}">
+                            <button type="submit">Add to Database</button>
+                        </form>
+                        
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
-            
         </table>
     </div>
 </body>
