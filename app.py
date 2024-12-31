@@ -98,7 +98,13 @@ def ask():
 
     dataset_answer, confidence = get_dataset_answer(user_question)
     if confidence > 0.2:
-        # Save the question-answer pair in feedback
+        # If AI found an appropriate answer, do not save it to the feedback
+        return render_template(
+            'index.html',
+            response=f"<strong>Answer:</strong> {dataset_answer}<br><strong>Source:</strong> dataset"
+        )
+    else:
+        # If AI did not find an answer, save it to the feedback file
         try:
             feedback_exists = os.path.exists(feedback_file)
             with open(feedback_file, 'a', encoding='utf-8') as f:
@@ -110,14 +116,11 @@ def ask():
 
         return render_template(
             'index.html',
-            response=f"<strong>Answer:</strong> {dataset_answer}<br><strong>Source:</strong> dataset"
-        )
-    else:
-        return render_template(
-            'index.html',
             response="AI couldn't find an appropriate answer. Please teach AI below.",
             autofill_question=user_question
         )
+
+
 
 @app.route('/teach', methods=['POST'])
 def teach():
