@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -15,7 +15,6 @@ feedback_file = 'feedback.csv'
 # Function to load dataset and reinitialize TF-IDF vectorizer
 def load_data():
     try:
-        # Load the dataset
         questions_answers_df = pd.read_csv(dataset_file, encoding='utf-8', quotechar='"')
         questions_answers_df.columns = questions_answers_df.columns.str.strip()
         questions = questions_answers_df['Question'].tolist()
@@ -39,51 +38,31 @@ def preprocess_text(text):
     text = re.sub(r'[^\w\s]', '', text)
     return text.strip()
 
-# Dynamic threshold
-def get_dynamic_threshold(question_length):
-    if question_length <= 5:
-        return 0.2  # For short questions (5 letters or less), 20% match threshold
-    elif question_length <= 10:
-        return 0.5  # For questions with 6-10 letters, 50% match threshold
-    else:
-        return 0.7  # For longer questions, 70% match threshold
-
 # Weighted score calculation
 def get_weighted_score(tfidf_score, fuzzy_score, weight_tfidf=0.7, weight_fuzzy=0.3):
     return (tfidf_score * weight_tfidf) + (fuzzy_score / 100 * weight_fuzzy)
 
-# Get answer from dataset
-def get_dataset_answer(user_question):
+# Get top 3 answers from dataset
+def get_top_answers(user_question):
     try:
         user_question = preprocess_text(user_question)
-        question_length = len(user_question.split())
-        threshold = get_dynamic_threshold(question_length)
-
         user_question_tfidf = vectorizer.transform([user_question])
         similarities = cosine_similarity(user_question_tfidf, tfidf_matrix).flatten()
 
-        most_similar_idx = similarities.argmax()
-        tfidf_score = similarities[most_similar_idx]
-
-        best_fuzzy_score = 0
-        best_fuzzy_idx = None
+        # Combine TF-IDF and fuzzy scores
+        scores = []
         for idx, question in enumerate(questions):
             fuzzy_score = fuzz.partial_ratio(user_question, preprocess_text(question))
-            if fuzzy_score > best_fuzzy_score:
-                best_fuzzy_score = fuzzy_score
-                best_fuzzy_idx = idx
+            weighted_score = get_weighted_score(similarities[idx], fuzzy_score)
+            scores.append((idx, weighted_score))
 
-        weighted_score = get_weighted_score(tfidf_score, best_fuzzy_score)
+        # Sort scores in descending order and get top 3
+        scores = sorted(scores, key=lambda x: x[1], reverse=True)[:3]
 
-        if weighted_score > threshold:
-            if tfidf_score > (best_fuzzy_score / 100):
-                return answers[most_similar_idx], weighted_score
-            else:
-                return answers[best_fuzzy_idx], weighted_score
-        else:
-            return None, 0
+        top_answers = [(answers[idx], score) for idx, score in scores if score > 0.2]  # Threshold = 0.2
+        return top_answers if top_answers else None
     except Exception as e:
-        return str(e), 0
+        return [(str(e), 0)]
 
 # Routes
 @app.route('/')
@@ -96,21 +75,20 @@ def ask():
     if not user_question:
         return render_template('index.html', response="Please enter a valid question.")
 
-    dataset_answer, confidence = get_dataset_answer(user_question)
-    if confidence > 0.2:
-        # If AI found an appropriate answer, do not save it to the feedback
+    top_answers = get_top_answers(user_question)
+    if top_answers:
         return render_template(
             'index.html',
-            response=f"<strong>Answer:</strong> {dataset_answer}<br><strong>Source:</strong> dataset"
+            response=[f"{i+1}. {answer}" for i, (answer, score) in enumerate(top_answers)]
         )
     else:
-        # If AI did not find an answer, save it to the feedback file
+        # Save the unanswered question to feedback
         try:
             feedback_exists = os.path.exists(feedback_file)
             with open(feedback_file, 'a', encoding='utf-8') as f:
                 if not feedback_exists:
                     f.write("Question,Answer\n")
-                f.write(f'"{user_question}","{dataset_answer}"\n')
+                f.write(f'"{user_question}",""\n')
         except Exception as e:
             print(f"Error saving to feedback: {e}")
 
@@ -119,8 +97,6 @@ def ask():
             response="AI couldn't find an appropriate answer. Please teach AI below.",
             autofill_question=user_question
         )
-
-
 
 @app.route('/teach', methods=['POST'])
 def teach():
